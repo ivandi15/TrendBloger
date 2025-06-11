@@ -1,10 +1,10 @@
-// Untuk tahap instalasi service worker
-self.addEventListener("install", async event => {
-  // Membuka (atau membuat) cache bernama "pwa-assets"
-  const cache = await caches.open("pwa-assets");
+// Service Worker untuk PWA UmKla - Website Wisata Umbul Klaten
+// File ini mengatur caching dan offline functionality
 
-  // Menyimpan seluruh aset
-  cache.addAll([
+const CACHE_NAME = "umkla-cache-v1";
+
+// Daftar file yang perlu di-cache untuk akses offline
+const urlsToCache = [ 
     "app.js",
     "index.html" ,
     "daftar.html",
@@ -28,17 +28,38 @@ self.addEventListener("install", async event => {
     "images/pindul1.jpg",
     "images/pinus.jpg",
     "images/pinus1.jpg"
-  ]); 
+];
+
+// Event Install - Dijalankan saat SW pertama kali diinstall
+self.addEventListener("install", async event => {
+  // Buka cache dan tambahkan semua file yang diperlukan
+  const cache = await caches.open(CACHE_NAME);
+  console.log("Service Worker: Menyimpan file ke cache...");
+  await cache.addAll(urlsToCache);
 });
- 
-// Untuk menangani semua permintaan jaringan (fetch)
+
+// Event Fetch - Dijalankan setiap kali browser meminta file
 self.addEventListener("fetch", event => {
   event.respondWith(
-    // Mencocokkan permintaan dengan aset yang sudah disimpan
-    caches.match(event.request).then(cachedResponse => {
-      // Jika ditemukan di cache, maka ambil dari cache
-      // Jika tidak ditemukan, ambil dari jaringan (fetch online)
-      return cachedResponse || fetch(event.request);
-    })
-  )
+    // Cek apakah file ada di cache
+    caches.match(event.request)
+      .then(cachedResponse => {
+        // Jika ada di cache, gunakan versi cache
+        if (cachedResponse) return cachedResponse;
+
+        // Jika tidak ada, coba ambil dari server
+        return fetch(event.request).catch(() => {
+          // Jika offline dan request gambar, tampilkan logo default
+          if (event.request.destination === 'image') {
+            return caches.match('/PWM3SW/images/logoumkla.png');
+          }
+
+          // Selain gambar, abaikan error (tidak tampilkan fallback)
+          return new Response('', {
+            status: 503,
+            statusText: 'Offline - resource not available in cache'
+          });
+        });
+      })
+  );
 });
